@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>☂️ 傘いる？チェッカー</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     :root {
       --primary: #3B82F6;
@@ -40,127 +41,83 @@
     header h1 { font-size: 2rem; font-weight: 800; margin-bottom: 8px; letter-spacing: -.01em; }
     header p  { opacity: .85; font-size: .95rem; line-height: 1.6; }
     .api-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 5px 14px;
-      background: rgba(255,255,255,.18);
-      border-radius: 999px;
-      font-size: .78rem;
-      font-weight: 600;
-      margin-top: 14px;
-      backdrop-filter: blur(4px);
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 14px; background: rgba(255,255,255,.18); border-radius: 999px;
+      font-size: .78rem; font-weight: 600; margin-top: 14px; backdrop-filter: blur(4px);
     }
 
     /* ─── Layout ─── */
     .container { max-width: 700px; margin: 0 auto; padding: 24px 16px 48px; }
-
     .card {
-      background: var(--card);
-      border-radius: var(--r);
-      box-shadow: var(--shadow);
-      padding: 22px 24px;
-      margin-bottom: 18px;
+      background: var(--card); border-radius: var(--r);
+      box-shadow: var(--shadow); padding: 22px 24px; margin-bottom: 18px;
     }
     .card-title {
-      font-size: .78rem;
-      font-weight: 700;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: .08em;
-      margin-bottom: 16px;
+      font-size: .78rem; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .08em; margin-bottom: 16px;
     }
 
-    /* ─── Inputs ─── */
-    input[type="text"],
-    input[type="time"] {
-      border: 1.5px solid var(--border);
-      border-radius: 8px;
-      padding: 10px 12px;
-      font-size: .95rem;
-      font-family: inherit;
-      color: var(--text);
-      background: white;
-      transition: border-color .15s, box-shadow .15s;
-      width: 100%;
+    /* ─── Inputs / Buttons ─── */
+    input[type="text"], input[type="time"] {
+      border: 1.5px solid var(--border); border-radius: 8px; padding: 10px 12px;
+      font-size: .95rem; font-family: inherit; color: var(--text); background: white;
+      transition: border-color .15s, box-shadow .15s; width: 100%;
     }
     input:focus {
-      outline: none;
-      border-color: var(--primary);
+      outline: none; border-color: var(--primary);
       box-shadow: 0 0 0 3px rgba(59,130,246,.12);
     }
-
     button {
-      cursor: pointer;
-      font-family: inherit;
-      border: none;
-      border-radius: 8px;
-      font-size: .9rem;
-      font-weight: 600;
-      padding: 10px 16px;
-      transition: all .15s;
-      white-space: nowrap;
+      cursor: pointer; font-family: inherit; border: none; border-radius: 8px;
+      font-size: .9rem; font-weight: 600; padding: 10px 16px;
+      transition: all .15s; white-space: nowrap;
     }
-    .btn-primary   { background: var(--primary); color: white; }
+    .btn-primary  { background: var(--primary); color: white; }
     .btn-primary:hover  { background: var(--primary-dark); transform: translateY(-1px); }
+    .btn-primary:disabled { opacity: .55; cursor: not-allowed; transform: none; }
     .btn-secondary { background: var(--bg); color: var(--text); border: 1.5px solid var(--border); }
     .btn-secondary:hover { background: var(--border); }
-
+    .btn-secondary:disabled { opacity: .55; cursor: not-allowed; }
     .row { display: flex; gap: 10px; align-items: stretch; }
     .row input { flex: 1; }
 
-    /* ─── Suggestions dropdown ─── */
+    /* ─── Suggestions ─── */
     .suggestions {
-      border: 1.5px solid var(--border);
-      border-radius: 8px;
-      overflow: hidden;
-      margin-top: 6px;
-      display: none;
-      box-shadow: 0 4px 16px rgba(0,0,0,.08);
+      border: 1.5px solid var(--border); border-radius: 8px; overflow: hidden;
+      margin-top: 6px; display: none; box-shadow: 0 4px 16px rgba(0,0,0,.08);
     }
     .suggestions.open { display: block; }
     .suggest-item {
-      padding: 10px 14px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+      padding: 10px 14px; cursor: pointer;
+      display: flex; align-items: center; justify-content: space-between;
       transition: background .1s;
     }
     .suggest-item:hover { background: var(--primary-light); }
     .suggest-item + .suggest-item { border-top: 1px solid var(--border); }
     .suggest-name { font-weight: 600; font-size: .92rem; }
-    .suggest-sub  { font-size: .78rem; color: var(--muted); margin-top: 2px; }
+    .suggest-sub  { font-size: .76rem; color: var(--muted); margin-top: 2px; }
 
     /* ─── Location display ─── */
     .loc-display {
-      display: none;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 14px;
-      background: var(--primary-light);
-      border-radius: 8px;
-      color: var(--primary);
-      font-weight: 600;
-      font-size: .9rem;
-      margin-top: 10px;
+      display: none; align-items: center; gap: 8px; padding: 10px 14px;
+      background: var(--primary-light); border-radius: 8px;
+      color: var(--primary); font-weight: 600; font-size: .9rem; margin-top: 10px;
     }
+
+    /* ─── Location buttons row ─── */
+    .loc-btns { display: flex; gap: 10px; margin-top: 10px; }
+    .loc-btns button { flex: 1; }
 
     /* ─── Schedule ─── */
     .schedule-row {
-      display: grid;
-      grid-template-columns: 26px 74px 1fr 1fr;
-      align-items: center;
-      gap: 12px;
-      padding: 10px 0;
-      border-bottom: 1px solid var(--border);
-      transition: opacity .15s;
+      display: grid; grid-template-columns: 26px 74px 1fr 1fr;
+      align-items: center; gap: 12px; padding: 10px 0;
+      border-bottom: 1px solid var(--border); transition: opacity .15s;
     }
     .schedule-row:last-child { border-bottom: none; }
     .schedule-row.off { opacity: .35; }
-    .day-name          { font-weight: 700; font-size: .9rem; }
-    .day-name.sat      { color: #3B82F6; }
-    .day-name.sun      { color: #EF4444; }
+    .day-name { font-weight: 700; font-size: .9rem; }
+    .day-name.sat { color: #3B82F6; } .day-name.sun { color: #EF4444; }
     input[type="checkbox"] { width: 20px; height: 20px; cursor: pointer; accent-color: var(--primary); }
     .time-group { display: flex; flex-direction: column; gap: 3px; }
     .time-label { font-size: .72rem; color: var(--muted); font-weight: 600; }
@@ -168,65 +125,38 @@
 
     /* ─── Check button ─── */
     .check-btn {
-      width: 100%;
-      padding: 17px;
-      font-size: 1.05rem;
-      border-radius: var(--r);
+      width: 100%; padding: 17px; font-size: 1.05rem; border-radius: var(--r);
       background: linear-gradient(135deg, var(--primary-dark), var(--primary));
-      color: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      box-shadow: 0 4px 18px rgba(59,130,246,.35);
-      margin-bottom: 22px;
+      color: white; display: flex; align-items: center; justify-content: center;
+      gap: 10px; box-shadow: 0 4px 18px rgba(59,130,246,.35); margin-bottom: 22px;
     }
     .check-btn:hover    { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(59,130,246,.45); }
     .check-btn:disabled { opacity: .6; cursor: not-allowed; transform: none; box-shadow: none; }
 
     /* ─── Result cards ─── */
     .result-card {
-      background: var(--card);
-      border-radius: var(--r);
-      box-shadow: var(--shadow);
-      overflow: hidden;
-      margin-bottom: 14px;
+      background: var(--card); border-radius: var(--r);
+      box-shadow: var(--shadow); overflow: hidden; margin-bottom: 14px;
     }
     .result-header {
-      padding: 15px 20px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      border-left: 5px solid transparent;
+      padding: 15px 20px; display: flex; align-items: center;
+      justify-content: space-between; border-left: 5px solid transparent;
     }
     .rh-yes   { background: #EFF6FF; border-left-color: #3B82F6; }
     .rh-maybe { background: #FFFBEB; border-left-color: #F59E0B; }
     .rh-no    { background: #F0FDF4; border-left-color: #10B981; }
     .result-day { font-weight: 700; font-size: 1rem; }
-    .result-badge {
-      padding: 5px 14px;
-      border-radius: 999px;
-      font-weight: 700;
-      font-size: .82rem;
-    }
+    .result-badge { padding: 5px 14px; border-radius: 999px; font-weight: 700; font-size: .82rem; }
     .rb-yes   { background: #DBEAFE; color: #1D4ED8; }
     .rb-maybe { background: #FEF3C7; color: #92400E; }
     .rb-no    { background: #DCFCE7; color: #065F46; }
-
     .result-body { padding: 14px 20px; }
-    .commute-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 14px;
-      padding: 12px 0;
-    }
+    .commute-item { display: flex; align-items: flex-start; gap: 14px; padding: 12px 0; }
     .commute-item + .commute-item { border-top: 1px solid var(--border); }
     .c-icon { font-size: 1.8rem; line-height: 1; flex-shrink: 0; }
     .c-info { flex: 1; min-width: 0; }
     .c-label { font-size: .74rem; color: var(--muted); font-weight: 600; margin-bottom: 3px; }
     .c-desc  { font-weight: 700; font-size: .94rem; margin-bottom: 7px; }
-
-    /* Pop progress bar */
     .pop-row { display: flex; align-items: center; gap: 8px; }
     .pop-tag  { font-size: .72rem; color: var(--muted); white-space: nowrap; }
     .pop-bg   { flex: 1; height: 6px; background: var(--border); border-radius: 999px; overflow: hidden; }
@@ -262,14 +192,46 @@
       position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
       color: white; padding: 12px 26px; border-radius: 10px;
       font-size: .9rem; font-weight: 600; box-shadow: 0 4px 20px rgba(0,0,0,.2);
-      z-index: 1000; animation: fadeUp .25s ease; pointer-events: none;
+      z-index: 3000; animation: fadeUp .25s ease; pointer-events: none;
     }
+
+    /* ─── Map Modal ─── */
+    .map-modal {
+      display: none; position: fixed; inset: 0; z-index: 2000; flex-direction: column;
+    }
+    .map-modal.open { display: flex; }
+
+    .map-topbar {
+      display: flex; gap: 8px; padding: 10px 12px;
+      background: white; box-shadow: 0 2px 8px rgba(0,0,0,.12);
+      z-index: 1; align-items: center; flex-wrap: wrap;
+    }
+    .map-topbar-title {
+      font-weight: 700; font-size: .9rem; white-space: nowrap;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .map-search-row { display: flex; gap: 8px; flex: 1; min-width: 200px; }
+    .map-search-row input { flex: 1; margin: 0; }
+
+    #mapEl { flex: 1; min-height: 0; }
+
+    .map-bottombar {
+      display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+      background: white; box-shadow: 0 -2px 8px rgba(0,0,0,.08);
+    }
+    .map-hint {
+      flex: 1; font-size: .88rem; color: var(--muted);
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .map-hint-name { font-weight: 700; color: var(--text); font-size: .92rem; }
+    .map-hint-sub  { font-size: .74rem; color: var(--muted); }
 
     @media (max-width: 480px) {
       header h1 { font-size: 1.5rem; }
       .card { padding: 18px 14px; }
       .schedule-row { grid-template-columns: 24px 60px 1fr 1fr; gap: 8px; }
       .check-btn { font-size: .95rem; }
+      .loc-btns { flex-direction: column; }
     }
   </style>
 </head>
@@ -288,10 +250,13 @@
     <div class="card-title">📍 場所設定</div>
     <div class="row">
       <input type="text" id="cityInput"
-             placeholder="都市名を入力（例：東京、大阪、Sapporo）"
+             placeholder="住所・駅名・地名で検索（例：渋谷駅、豊洲、梅田）"
              oninput="onCityInput()"
              onkeydown="if(event.key==='Enter') doSearch()" />
-      <button class="btn-primary"  onclick="doSearch()">検索</button>
+      <button class="btn-primary" onclick="doSearch()">検索</button>
+    </div>
+    <div class="loc-btns">
+      <button class="btn-secondary" onclick="openMap()">🗺️ 地図で選択</button>
       <button class="btn-secondary" id="gpsBtn" onclick="getGPS()">📡 現在地</button>
     </div>
     <div class="suggestions" id="suggestions"></div>
@@ -316,13 +281,40 @@
 
 </div>
 
+<!-- ══════════════ 地図モーダル ══════════════ -->
+<div id="mapModal" class="map-modal">
+  <div class="map-topbar">
+    <div class="map-topbar-title">
+      <button class="btn-secondary" onclick="closeMap()" style="padding:7px 11px;font-size:.85rem">✕ 閉じる</button>
+      <span>🗺️ 場所を地図で選択</span>
+    </div>
+    <div class="map-search-row">
+      <input type="text" id="mapSearchInput"
+             placeholder="駅名・住所・地名で検索"
+             onkeydown="if(event.key==='Enter') searchOnMap()" />
+      <button class="btn-primary" onclick="searchOnMap()">検索</button>
+    </div>
+  </div>
+
+  <div id="mapEl"></div>
+
+  <div class="map-bottombar">
+    <div class="map-hint" id="mapHint">
+      <span style="color:var(--muted)">地図をタップして場所をピン留めしてください</span>
+    </div>
+    <button class="btn-primary" id="mapConfirmBtn" onclick="confirmMapLocation()" disabled>
+      この場所に設定
+    </button>
+  </div>
+</div>
+
 <script>
 // ═══════════════════════════════════════════════════
-//  APIs — 完全無料・APIキー不要
+//  APIs（完全無料・キー不要）
 // ═══════════════════════════════════════════════════
-const GEO_API      = 'https://geocoding-api.open-meteo.com/v1/search';
+const NOMINATIM    = 'https://nominatim.openstreetmap.org';
 const FORECAST_API = 'https://api.open-meteo.com/v1/forecast';
-const REVERSE_API  = 'https://api.bigdatacloud.net/data/reverse-geocode-client';
+const REVERSE_BDC  = 'https://api.bigdatacloud.net/data/reverse-geocode-client';
 
 // ═══════════════════════════════════════════════════
 //  WMO天気コード → [絵文字, 日本語名, 傘必要?]
@@ -386,6 +378,11 @@ let sch = JSON.parse(localStorage.getItem('sch') || 'null') || structuredClone(D
 let suggestResults = [];
 let searchTimer = null;
 
+// 地図
+let leafMap     = null;
+let leafMarker  = null;
+let pendingLoc  = null;
+
 // ═══════════════════════════════════════════════════
 //  初期化
 // ═══════════════════════════════════════════════════
@@ -396,7 +393,7 @@ function init() {
 }
 
 // ═══════════════════════════════════════════════════
-//  場所検索
+//  場所テキスト検索（Nominatim）
 // ═══════════════════════════════════════════════════
 function onCityInput() {
   clearTimeout(searchTimer);
@@ -406,48 +403,165 @@ function onCityInput() {
 }
 
 async function doSearch() {
-  const city = document.getElementById('cityInput').value.trim();
-  if (!city) return;
+  const q = document.getElementById('cityInput').value.trim();
+  if (!q) return;
   try {
-    const r = await fetch(`${GEO_API}?name=${encodeURIComponent(city)}&count=6&language=ja&format=json`);
+    const r = await fetch(
+      `${NOMINATIM}/search?q=${encodeURIComponent(q)}&format=json&limit=6&accept-language=ja&addressdetails=1`
+    );
     const d = await r.json();
-    suggestResults = d.results || [];
-    renderSug(suggestResults);
+    suggestResults = d;
+    renderSug(d);
   } catch {
     toast('⚠️ 検索に失敗しました', '#991B1B');
   }
 }
 
+function nominatimName(r) {
+  const a = r.address || {};
+  return a.city || a.town || a.village || a.hamlet ||
+         a.county || a.suburb || a.neighbourhood ||
+         r.display_name.split(',')[0];
+}
+
 function renderSug(list) {
   const el = document.getElementById('suggestions');
   if (!list.length) { el.className = 'suggestions'; return; }
-  el.innerHTML = list.map((r, i) => `
-    <div class="suggest-item" onclick="selectCity(${i})">
-      <div>
-        <div class="suggest-name">${r.name}</div>
-        <div class="suggest-sub">${[r.admin1, r.country].filter(Boolean).join(' / ')}</div>
-      </div>
-      <div style="font-size:.75rem;color:var(--muted)">
-        ${r.latitude.toFixed(2)}, ${r.longitude.toFixed(2)}
-      </div>
-    </div>`).join('');
+  el.innerHTML = list.map((r, i) => {
+    const name = nominatimName(r);
+    const parts = r.display_name.split(',').map(s => s.trim());
+    const sub   = parts.slice(1, 4).filter(Boolean).join(' › ');
+    return `
+      <div class="suggest-item" onclick="selectResult(${i})">
+        <div>
+          <div class="suggest-name">${name}</div>
+          <div class="suggest-sub">${sub}</div>
+        </div>
+      </div>`;
+  }).join('');
   el.className = 'suggestions open';
+}
+
+function selectResult(i) {
+  const r = suggestResults[i];
+  const name = nominatimName(r);
+  setLoc({ lat: parseFloat(r.lat), lon: parseFloat(r.lon), name });
+  document.getElementById('cityInput').value = name;
+  closeSug();
 }
 
 function closeSug() {
   document.getElementById('suggestions').className = 'suggestions';
 }
 
-function selectCity(i) {
-  const r = suggestResults[i];
-  loc = { lat: r.latitude, lon: r.longitude, name: r.name };
-  localStorage.setItem('loc', JSON.stringify(loc));
-  document.getElementById('cityInput').value = r.name;
-  closeSug();
-  showLoc();
-  toast(`📍 ${r.name} を設定しました`);
+// ═══════════════════════════════════════════════════
+//  地図で選択（Leaflet + OpenStreetMap）
+// ═══════════════════════════════════════════════════
+function openMap() {
+  document.getElementById('mapModal').classList.add('open');
+
+  if (!leafMap) {
+    // 初期化：現在設定中の場所 or 東京
+    const center = loc ? [loc.lat, loc.lon] : [35.6895, 139.6917];
+    const zoom   = loc ? 13 : 6;
+
+    leafMap = L.map('mapEl').setView(center, zoom);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19,
+    }).addTo(leafMap);
+
+    // タップで場所選択
+    leafMap.on('click', async e => {
+      placePin(e.latlng.lat, e.latlng.lng);
+      await reverseGeocode(e.latlng.lat, e.latlng.lng);
+    });
+
+    // 既存の場所にピンを立てる
+    if (loc) {
+      placePin(loc.lat, loc.lon);
+      pendingLoc = { ...loc };
+      setMapHint(loc.name, true);
+    }
+  } else {
+    if (loc) leafMap.setView([loc.lat, loc.lon], 13);
+  }
+
+  setTimeout(() => leafMap.invalidateSize(), 150);
 }
 
+function placePin(lat, lng) {
+  if (leafMarker) leafMarker.remove();
+  leafMarker = L.marker([lat, lng]).addTo(leafMap);
+}
+
+async function reverseGeocode(lat, lng) {
+  setMapHint('取得中…', false);
+  try {
+    const r = await fetch(
+      `${NOMINATIM}/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=ja`
+    );
+    const d = await r.json();
+    const a = d.address || {};
+    const name = a.city || a.town || a.village || a.hamlet ||
+                 a.county || a.suburb || d.display_name.split(',')[0];
+    const sub  = [a.state, a.city || a.town].filter(Boolean).join('　');
+    pendingLoc = { lat, lon: lng, name };
+    setMapHint(name, true, sub);
+  } catch {
+    const name = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    pendingLoc = { lat, lon: lng, name };
+    setMapHint(name, true);
+  }
+}
+
+function setMapHint(text, ready, sub = '') {
+  const el  = document.getElementById('mapHint');
+  const btn = document.getElementById('mapConfirmBtn');
+  if (ready) {
+    el.innerHTML = `
+      <span class="map-hint-name">📍 ${text}</span>
+      ${sub ? `<span class="map-hint-sub">${sub}</span>` : ''}`;
+    btn.disabled = false;
+  } else {
+    el.innerHTML = `<span style="color:var(--muted)">${text}</span>`;
+    btn.disabled = true;
+  }
+}
+
+async function searchOnMap() {
+  const q = document.getElementById('mapSearchInput').value.trim();
+  if (!q) return;
+  try {
+    const r = await fetch(
+      `${NOMINATIM}/search?q=${encodeURIComponent(q)}&format=json&limit=1&accept-language=ja`
+    );
+    const d = await r.json();
+    if (!d.length) { toast('⚠️ 見つかりませんでした', '#92400E'); return; }
+    const lat = parseFloat(d[0].lat), lng = parseFloat(d[0].lon);
+    leafMap.setView([lat, lng], 14);
+    placePin(lat, lng);
+    await reverseGeocode(lat, lng);
+  } catch {
+    toast('⚠️ 検索に失敗しました', '#991B1B');
+  }
+}
+
+function confirmMapLocation() {
+  if (!pendingLoc) return;
+  setLoc(pendingLoc);
+  document.getElementById('cityInput').value = pendingLoc.name;
+  toast(`📍 ${pendingLoc.name} を設定しました`);
+  closeMap();
+}
+
+function closeMap() {
+  document.getElementById('mapModal').classList.remove('open');
+}
+
+// ═══════════════════════════════════════════════════
+//  GPS（失敗時はIPフォールバック）
+// ═══════════════════════════════════════════════════
 async function getGPS() {
   const btn = document.getElementById('gpsBtn');
   btn.textContent = '取得中…'; btn.disabled = true;
@@ -457,29 +571,23 @@ async function getGPS() {
       toast('⚠️ GPS非対応 → IPアドレスから推定します', '#92400E');
       await ipGeo(); return;
     }
-
-    // GPS取得（10秒タイムアウト）
     const pos = await new Promise((resolve, reject) =>
       navigator.geolocation.getCurrentPosition(resolve, reject,
         { timeout: 10000, maximumAge: 60000, enableHighAccuracy: false })
     );
-
     const { latitude: lat, longitude: lon } = pos.coords;
     try {
-      const r = await fetch(`${REVERSE_API}?latitude=${lat}&longitude=${lon}&localityLanguage=ja`);
+      const r = await fetch(`${REVERSE_BDC}?latitude=${lat}&longitude=${lon}&localityLanguage=ja`);
       const d = await r.json();
       const name = d.city || d.locality || d.principalSubdivision || '現在地';
       setLoc({ lat, lon, name });
     } catch {
       setLoc({ lat, lon, name: '現在地' });
     }
-
   } catch (err) {
-    // GPS失敗の理由を表示 → IPフォールバック
-    const reason = err.code === 1 ? 'ブラウザで許可が必要です'
-                 : err.code === 2 ? 'GPS信号を取得できませんでした'
-                 : err.code === 3 ? 'タイムアウト'
-                 : '取得失敗';
+    const reason = err.code === 1 ? 'ブラウザで許可が必要'
+                 : err.code === 2 ? 'GPS信号なし'
+                 : err.code === 3 ? 'タイムアウト' : '取得失敗';
     toast(`⚠️ GPS: ${reason} → IPアドレスから推定します`, '#92400E');
     await ipGeo();
   } finally {
@@ -487,29 +595,25 @@ async function getGPS() {
   }
 }
 
-// IPアドレスから場所を推定するフォールバック
 async function ipGeo() {
   try {
     const r = await fetch('https://ipapi.co/json/');
     const d = await r.json();
-    if (!d.latitude) throw new Error('no data');
+    if (!d.latitude) throw new Error();
     setLoc({ lat: d.latitude, lon: d.longitude, name: d.city || d.region || '現在地' });
     toast(`📍 ${loc.name}（IPから推定）を設定しました`);
   } catch {
-    toast('⚠️ 場所の自動取得に失敗しました。都市名で検索してください', '#991B1B');
+    toast('⚠️ 自動取得に失敗しました。地図か都市名検索をご利用ください', '#991B1B');
   }
 }
 
-// 場所をセットして表示
+// ─── 場所共通セット ───
 function setLoc(l) {
   loc = l;
   localStorage.setItem('loc', JSON.stringify(loc));
-  document.getElementById('cityInput').value = loc.name;
   closeSug();
   showLoc();
-  if (l.name !== '現在地') toast(`📍 ${loc.name} を設定しました`);
 }
-
 function showLoc() {
   document.getElementById('locName').textContent = loc.name;
   document.getElementById('locDisplay').style.display = 'flex';
@@ -580,7 +684,6 @@ async function checkWeather() {
   }
 }
 
-// ─── 今週の日付（月〜日） ───
 function thisWeekDates() {
   const today = new Date();
   const dow = today.getDay();
@@ -588,9 +691,7 @@ function thisWeekDates() {
   mon.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
   mon.setHours(0, 0, 0, 0);
   return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(mon);
-    d.setDate(mon.getDate() + i);
-    return d;
+    const d = new Date(mon); d.setDate(mon.getDate() + i); return d;
   });
 }
 
@@ -598,38 +699,29 @@ function fmtKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
 }
 
-// ─── 出発/帰宅 ±1時間分のスロットを取得 ───
 function getSlots(hourly, dateStr, timeStr) {
   const h = parseInt(timeStr);
-  return [h - 1, h, h + 1]
-    .filter(x => x >= 0 && x <= 23)
-    .map(hr => {
-      const key = `${dateStr}T${String(hr).padStart(2,'0')}:00`;
-      const idx = hourly.time.indexOf(key);
-      if (idx === -1) return null;
-      return {
-        key,
-        hr,
-        pop:  hourly.precipitation_probability[idx] ?? 0,
-        code: hourly.weathercode[idx] ?? 0,
-        temp: hourly.temperature_2m[idx] ?? null,
-        rain: (hourly.precipitation[idx] ?? 0) + (hourly.snowfall[idx] ?? 0),
-      };
-    })
-    .filter(Boolean);
+  return [h - 1, h, h + 1].filter(x => x >= 0 && x <= 23).map(hr => {
+    const key = `${dateStr}T${String(hr).padStart(2,'0')}:00`;
+    const idx = hourly.time.indexOf(key);
+    if (idx === -1) return null;
+    return {
+      key, hr,
+      pop:  hourly.precipitation_probability[idx] ?? 0,
+      code: hourly.weathercode[idx] ?? 0,
+      temp: hourly.temperature_2m[idx] ?? null,
+      rain: (hourly.precipitation[idx] ?? 0) + (hourly.snowfall[idx] ?? 0),
+    };
+  }).filter(Boolean);
 }
 
-// ─── スロット群から代表（時刻に最も近い）を選ぶ ───
 function pickMain(slots, timeStr) {
   const h = parseInt(timeStr);
-  return slots.reduce((a, b) =>
-    Math.abs(a.hr - h) <= Math.abs(b.hr - h) ? a : b
-  );
+  return slots.reduce((a, b) => Math.abs(a.hr - h) <= Math.abs(b.hr - h) ? a : b);
 }
 
-// ─── 傘判定 ───
 function judge(slots) {
-  if (!slots.length) return 'unknown';
+  if (!slots.length) return 'no';
   const maxPop  = Math.max(...slots.map(s => s.pop));
   const hasRain = slots.some(s => wmo(s.code)[2] || s.rain > 0);
   if (hasRain || maxPop >= 50) return 'yes';
@@ -637,7 +729,6 @@ function judge(slots) {
   return 'no';
 }
 
-// ─── 結果レンダリング ───
 function renderResults(hourly) {
   const today   = new Date(); today.setHours(0, 0, 0, 0);
   const dayKeys = ['mon','tue','wed','thu','fri','sat','sun'];
@@ -665,7 +756,6 @@ function renderResults(hourly) {
           <div class="c-desc" style="color:var(--muted);font-weight:500">予報データなし（7日以上先）</div>
         </div>
       </div>`;
-
     const main   = pickMain(slots, timeStr);
     const maxPop = Math.max(...slots.map(s => s.pop));
     const [emoji, desc] = wmo(main.code);
@@ -676,8 +766,7 @@ function renderResults(hourly) {
         <div class="c-info">
           <div class="c-label">${label}（${timeStr}）</div>
           <div class="c-desc">
-            ${desc}
-            ${main.temp !== null ? `　${Math.round(main.temp)}℃` : ''}
+            ${desc}${main.temp !== null ? `　${Math.round(main.temp)}℃` : ''}
             ${main.rain > 0 ? `　<span style="color:var(--primary);font-size:.82rem">雨雪量 ${main.rain.toFixed(1)}mm/h</span>` : ''}
           </div>
           <div class="pop-row">
@@ -693,14 +782,11 @@ function renderResults(hourly) {
     const ds   = fmtKey(date);
     const depS = getSlots(hourly, ds, s.depart);
     const arrS = getSlots(hourly, ds, s.arrive);
-    const dj   = judge(depS);
-    const aj   = judge(arrS);
-    const ov   = (dj==='yes'||aj==='yes') ? 'yes' : (dj==='maybe'||aj==='maybe') ? 'maybe' : 'no';
-
+    const dj = judge(depS), aj = judge(arrS);
+    const ov = (dj==='yes'||aj==='yes') ? 'yes' : (dj==='maybe'||aj==='maybe') ? 'maybe' : 'no';
     const hc = { yes:'rh-yes', maybe:'rh-maybe', no:'rh-no' }[ov];
     const bc = { yes:'rb-yes', maybe:'rb-maybe', no:'rb-no' }[ov];
     const bt = { yes:'☂️ 傘が必要！', maybe:'🤔 念のため持参', no:'☀️ 傘は不要' }[ov];
-
     return `
       <div class="result-card">
         <div class="result-header ${hc}">
@@ -718,24 +804,20 @@ function renderResults(hourly) {
     <div class="results-title">📊 今週の傘予報（${loc.name}）</div>
     ${cards}
     <p style="font-size:.74rem;color:var(--muted);text-align:center;margin-top:6px">
-      天気データ提供：<a href="https://open-meteo.com" target="_blank" style="color:var(--primary)">Open-Meteo</a>
-      （最大7日先まで対応）
+      天気データ：<a href="https://open-meteo.com" target="_blank" style="color:var(--primary)">Open-Meteo</a>
+      地図：<a href="https://www.openstreetmap.org/copyright" target="_blank" style="color:var(--primary)">OpenStreetMap</a>
     </p>`;
 }
 
-// ─── Helpers ───
 function showErr(msg) {
   document.getElementById('results').innerHTML = `<div class="error-box">⚠️ ${msg}</div>`;
 }
 
 function toast(msg, bg = '#065F46') {
-  const el = Object.assign(document.createElement('div'), {
-    className: 'toast',
-    textContent: msg,
-  });
+  const el = Object.assign(document.createElement('div'), { className:'toast', textContent:msg });
   el.style.background = bg;
   document.body.appendChild(el);
-  setTimeout(() => el.remove(), 2600);
+  setTimeout(() => el.remove(), 2800);
 }
 
 document.addEventListener('click', e => {
@@ -744,5 +826,6 @@ document.addEventListener('click', e => {
 
 init();
 </script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </body>
 </html>
