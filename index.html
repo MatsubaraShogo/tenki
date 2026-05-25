@@ -261,7 +261,11 @@
     </div>
     <div class="suggestions" id="suggestions"></div>
     <div class="loc-display" id="locDisplay">
-      <span>📍</span><span id="locName"></span>
+      <span>📍</span>
+      <span id="locName" style="flex:1"></span>
+      <button onclick="clearLoc()"
+        style="background:none;border:none;padding:2px 6px;cursor:pointer;color:#64748B;font-size:1.1rem;line-height:1;border-radius:4px"
+        title="場所をクリア">✕</button>
     </div>
   </div>
 
@@ -462,8 +466,8 @@ function openMap() {
 
   if (!leafMap) {
     // 初期化：現在設定中の場所 or 東京
-    const center = loc ? [loc.lat, loc.lon] : [35.6895, 139.6917];
-    const zoom   = loc ? 13 : 6;
+    const center = loc ? [loc.lat, loc.lon] : [35.6895, 139.6917]; // デフォルト：東京
+    const zoom   = loc ? 13 : 10; // 未設定時は東京近郊レベルで表示
 
     leafMap = L.map('mapEl').setView(center, zoom);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -562,52 +566,75 @@ function closeMap() {
 // ═══════════════════════════════════════════════════
 //  GPS（失敗時はIPフォールバック）
 // ═══════════════════════════════════════════════════
+// ─── 現在地取得：GPS → WiFi/セル → IP の順で試行 ───
 async function getGPS() {
   const btn = document.getElementById('gpsBtn');
-  btn.textContent = '取得中…'; btn.disabled = true;
+  btn.textContent = '📡 取得中…'; btn.disabled = true;
 
+  if (!navigator.geolocation) {
+    toast('⚠️ このブラウザは位置情報非対応 → IPアドレスから推定します', '#92400E');
+    await ipGeo();
+    btn.textContent = '📡 現在地'; btn.disabled = false;
+    return;
+  }
+
+  // ① まず WiFi/セル基地局で試みる（enableHighAccuracy: false）
+  //    → 管理者制限でこれも失敗したら ② IPへ
+  toast('📡 GPS / WiFi で位置を取得中…', '#1D4ED8');
   try {
-    if (!navigator.geolocation) {
-      toast('⚠️ GPS非対応 → IPアドレスから推定します', '#92400E');
-      await ipGeo(); return;
-    }
     const pos = await new Promise((resolve, reject) =>
-      navigator.geolocation.getCurrentPosition(resolve, reject,
-        { timeout: 10000, maximumAge: 60000, enableHighAccuracy: false })
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        timeout: 12000,
+        maximumAge: 60000,
+        enableHighAccuracy: false, // WiFi・セル優先（GPS より省電力・高速）
+      })
     );
-    const { latitude: lat, longitude: lon } = pos.coords;
+    const { latitude: lat, longitude: lon, accuracy } = pos.coords;
+
+    // 精度から取得方式を推定
+    const method = accuracy <  50  ? 'GPS'
+                 : accuracy < 500  ? 'WiFi測位'
+                 : accuracy < 5000 ? 'セル基地局'
+                 : '推定';
+
     try {
       const r = await fetch(`${REVERSE_BDC}?latitude=${lat}&longitude=${lon}&localityLanguage=ja`);
       const d = await r.json();
       const name = d.city || d.locality || d.principalSubdivision || '現在地';
       setLoc({ lat, lon, name });
+      toast(`📍 ${name}（${method}・精度 ${Math.round(accuracy)}m）`);
     } catch {
       setLoc({ lat, lon, name: '現在地' });
+      toast(`📍 現在地を設定しました（${method}・精度 ${Math.round(accuracy)}m）`);
     }
+
   } catch (err) {
-    const reason = err.code === 1 ? 'ブラウザで許可が必要'
-                 : err.code === 2 ? 'GPS信号なし'
-                 : err.code === 3 ? 'タイムアウト' : '取得失敗';
-    toast(`⚠️ GPS: ${reason} → IPアドレスから推定します`, '#92400E');
+    // ② GPS/WiFi 失敗 → IP アドレスで推定
+    const reason = err.code === 1 ? 'アクセス拒否（管理者設定）'
+                 : err.code === 2 ? 'GPS/WiFi 信号なし'
+                 : err.code === 3 ? 'タイムアウト'
+                 : '取得失敗';
+    toast(`⚠️ ${reason} → IPアドレスから推定します`, '#92400E');
     await ipGeo();
   } finally {
     btn.textContent = '📡 現在地'; btn.disabled = false;
   }
 }
 
+// ③ IP アドレスから場所を推定
 async function ipGeo() {
   try {
     const r = await fetch('https://ipapi.co/json/');
     const d = await r.json();
-    if (!d.latitude) throw new Error();
+    if (!d.latitude) throw new Error('no location');
     setLoc({ lat: d.latitude, lon: d.longitude, name: d.city || d.region || '現在地' });
-    toast(`📍 ${loc.name}（IPから推定）を設定しました`);
+    toast(`📍 ${loc.name}（IPアドレスから推定）を設定しました`);
   } catch {
-    toast('⚠️ 自動取得に失敗しました。地図か都市名検索をご利用ください', '#991B1B');
+    toast('⚠️ 自動取得に失敗しました。🗺️ 地図か都市名検索をご利用ください', '#991B1B');
   }
 }
 
-// ─── 場所共通セット ───
+// ─── 場所共通セット / クリア ───
 function setLoc(l) {
   loc = l;
   localStorage.setItem('loc', JSON.stringify(loc));
@@ -617,6 +644,17 @@ function setLoc(l) {
 function showLoc() {
   document.getElementById('locName').textContent = loc.name;
   document.getElementById('locDisplay').style.display = 'flex';
+}
+function clearLoc() {
+  loc = null;
+  localStorage.removeItem('loc');
+  document.getElementById('locDisplay').style.display = 'none';
+  document.getElementById('cityInput').value = '';
+  // 地図のピンもリセット
+  if (leafMarker) { leafMarker.remove(); leafMarker = null; }
+  pendingLoc = null;
+  setMapHint('地図をタップして場所を選んでください', false);
+  toast('📍 場所をクリアしました', '#475569');
 }
 
 // ═══════════════════════════════════════════════════
