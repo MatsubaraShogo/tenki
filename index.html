@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>☂️ 傘いる？チェッカー</title>
+  <style>
+    :root {
+      --primary: #3B82F6;
+      --primary-dark: #1D4ED8;
+      --primary-light: #EFF6FF;
+      --bg: #F1F5F9;
+      --card: #FFFFFF;
+      --text: #0F172A;
+      --muted: #64748B;
+      --border: #E2E8F0;
+      --green: #10B981;
+      --yellow: #F59E0B;
+      --red: #EF4444;
+      --r: 14px;
+      --shadow: 0 1px 4px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.06);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP',
+                   'Yu Gothic UI', 'Meiryo', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ─── Header ─── */
+    header {
+      background: linear-gradient(135deg, #1E40AF 0%, #3B82F6 60%, #60A5FA 100%);
+      color: white;
+      padding: 36px 20px 28px;
+      text-align: center;
+    }
+    header h1 { font-size: 2rem; font-weight: 800; margin-bottom: 8px; letter-spacing: -.01em; }
+    header p  { opacity: .85; font-size: .95rem; line-height: 1.6; }
+    .api-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 14px;
+      background: rgba(255,255,255,.18);
+      border-radius: 999px;
+      font-size: .78rem;
+      font-weight: 600;
+      margin-top: 14px;
+      backdrop-filter: blur(4px);
+    }
+
+    /* ─── Layout ─── */
+    .container { max-width: 700px; margin: 0 auto; padding: 24px 16px 48px; }
+
+    .card {
+      background: var(--card);
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+      padding: 22px 24px;
+      margin-bottom: 18px;
+    }
+    .card-title {
+      font-size: .78rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-bottom: 16px;
+    }
+
+    /* ─── Inputs ─── */
+    input[type="text"],
+    input[type="time"] {
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: .95rem;
+      font-family: inherit;
+      color: var(--text);
+      background: white;
+      transition: border-color .15s, box-shadow .15s;
+      width: 100%;
+    }
+    input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(59,130,246,.12);
+    }
+
+    button {
+      cursor: pointer;
+      font-family: inherit;
+      border: none;
+      border-radius: 8px;
+      font-size: .9rem;
+      font-weight: 600;
+      padding: 10px 16px;
+      transition: all .15s;
+      white-space: nowrap;
+    }
+    .btn-primary   { background: var(--primary); color: white; }
+    .btn-primary:hover  { background: var(--primary-dark); transform: translateY(-1px); }
+    .btn-secondary { background: var(--bg); color: var(--text); border: 1.5px solid var(--border); }
+    .btn-secondary:hover { background: var(--border); }
+
+    .row { display: flex; gap: 10px; align-items: stretch; }
+    .row input { flex: 1; }
+
+    /* ─── Suggestions dropdown ─── */
+    .suggestions {
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-top: 6px;
+      display: none;
+      box-shadow: 0 4px 16px rgba(0,0,0,.08);
+    }
+    .suggestions.open { display: block; }
+    .suggest-item {
+      padding: 10px 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: background .1s;
+    }
+    .suggest-item:hover { background: var(--primary-light); }
+    .suggest-item + .suggest-item { border-top: 1px solid var(--border); }
+    .suggest-name { font-weight: 600; font-size: .92rem; }
+    .suggest-sub  { font-size: .78rem; color: var(--muted); margin-top: 2px; }
+
+    /* ─── Location display ─── */
+    .loc-display {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      background: var(--primary-light);
+      border-radius: 8px;
+      color: var(--primary);
+      font-weight: 600;
+      font-size: .9rem;
+      margin-top: 10px;
+    }
+
+    /* ─── Schedule ─── */
+    .schedule-row {
+      display: grid;
+      grid-template-columns: 26px 74px 1fr 1fr;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      transition: opacity .15s;
+    }
+    .schedule-row:last-child { border-bottom: none; }
+    .schedule-row.off { opacity: .35; }
+    .day-name          { font-weight: 700; font-size: .9rem; }
+    .day-name.sat      { color: #3B82F6; }
+    .day-name.sun      { color: #EF4444; }
+    input[type="checkbox"] { width: 20px; height: 20px; cursor: pointer; accent-color: var(--primary); }
+    .time-group { display: flex; flex-direction: column; gap: 3px; }
+    .time-label { font-size: .72rem; color: var(--muted); font-weight: 600; }
+    input[type="time"] { padding: 8px 10px; }
+
+    /* ─── Check button ─── */
+    .check-btn {
+      width: 100%;
+      padding: 17px;
+      font-size: 1.05rem;
+      border-radius: var(--r);
+      background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      box-shadow: 0 4px 18px rgba(59,130,246,.35);
+      margin-bottom: 22px;
+    }
+    .check-btn:hover    { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(59,130,246,.45); }
+    .check-btn:disabled { opacity: .6; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    /* ─── Result cards ─── */
+    .result-card {
+      background: var(--card);
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+    .result-header {
+      padding: 15px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-left: 5px solid transparent;
+    }
+    .rh-yes   { background: #EFF6FF; border-left-color: #3B82F6; }
+    .rh-maybe { background: #FFFBEB; border-left-color: #F59E0B; }
+    .rh-no    { background: #F0FDF4; border-left-color: #10B981; }
+    .result-day { font-weight: 700; font-size: 1rem; }
+    .result-badge {
+      padding: 5px 14px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: .82rem;
+    }
+    .rb-yes   { background: #DBEAFE; color: #1D4ED8; }
+    .rb-maybe { background: #FEF3C7; color: #92400E; }
+    .rb-no    { background: #DCFCE7; color: #065F46; }
+
+    .result-body { padding: 14px 20px; }
+    .commute-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 12px 0;
+    }
+    .commute-item + .commute-item { border-top: 1px solid var(--border); }
+    .c-icon { font-size: 1.8rem; line-height: 1; flex-shrink: 0; }
+    .c-info { flex: 1; min-width: 0; }
+    .c-label { font-size: .74rem; color: var(--muted); font-weight: 600; margin-bottom: 3px; }
+    .c-desc  { font-weight: 700; font-size: .94rem; margin-bottom: 7px; }
+
+    /* Pop progress bar */
+    .pop-row { display: flex; align-items: center; gap: 8px; }
+    .pop-tag  { font-size: .72rem; color: var(--muted); white-space: nowrap; }
+    .pop-bg   { flex: 1; height: 6px; background: var(--border); border-radius: 999px; overflow: hidden; }
+    .pop-fill { height: 100%; border-radius: 999px; transition: width .6s ease; }
+    .pop-val  { font-size: .82rem; font-weight: 700; min-width: 36px; text-align: right; }
+    .hi  { color: var(--red);    } .fill-hi  { background: var(--red);    }
+    .mid { color: var(--yellow); } .fill-mid { background: var(--yellow); }
+    .lo  { color: var(--green);  } .fill-lo  { background: var(--green);  }
+
+    /* ─── Loading / Error ─── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading { text-align: center; padding: 40px; color: var(--muted); }
+    .spinner {
+      display: block; width: 34px; height: 34px; margin: 0 auto 14px;
+      border: 3px solid var(--border); border-top-color: var(--primary);
+      border-radius: 50%; animation: spin .75s linear infinite;
+    }
+    .error-box {
+      background: #FEF2F2; border: 1px solid #FECACA; color: #991B1B;
+      border-radius: 8px; padding: 14px 16px; font-size: .9rem; line-height: 1.6;
+    }
+    .results-title {
+      font-size: .78rem; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .08em; margin-bottom: 14px;
+    }
+
+    /* ─── Toast ─── */
+    @keyframes fadeUp {
+      from { opacity:0; transform:translateX(-50%) translateY(8px); }
+      to   { opacity:1; transform:translateX(-50%) translateY(0); }
+    }
+    .toast {
+      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+      color: white; padding: 12px 26px; border-radius: 10px;
+      font-size: .9rem; font-weight: 600; box-shadow: 0 4px 20px rgba(0,0,0,.2);
+      z-index: 1000; animation: fadeUp .25s ease; pointer-events: none;
+    }
+
+    @media (max-width: 480px) {
+      header h1 { font-size: 1.5rem; }
+      .card { padding: 18px 14px; }
+      .schedule-row { grid-template-columns: 24px 60px 1fr 1fr; gap: 8px; }
+      .check-btn { font-size: .95rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>☂️ 傘いる？チェッカー</h1>
+  <p>今週の出勤スケジュールを登録して<br>傘が必要かどうかまとめて確認しよう</p>
+  <div class="api-badge">🌍 完全無料　APIキー不要　Open-Meteo 使用</div>
+</header>
+
+<div class="container">
+
+  <!-- 場所設定 -->
+  <div class="card">
+    <div class="card-title">📍 場所設定</div>
+    <div class="row">
+      <input type="text" id="cityInput"
+             placeholder="都市名を入力（例：東京、大阪、Sapporo）"
+             oninput="onCityInput()"
+             onkeydown="if(event.key==='Enter') doSearch()" />
+      <button class="btn-primary"  onclick="doSearch()">検索</button>
+      <button class="btn-secondary" onclick="getGPS()">📡 現在地</button>
+    </div>
+    <div class="suggestions" id="suggestions"></div>
+    <div class="loc-display" id="locDisplay">
+      <span>📍</span><span id="locName"></span>
+    </div>
+  </div>
+
+  <!-- スケジュール -->
+  <div class="card">
+    <div class="card-title">📅 今週の出勤スケジュール</div>
+    <div id="scheduleWrap"></div>
+  </div>
+
+  <!-- チェックボタン -->
+  <button class="check-btn" id="checkBtn" onclick="checkWeather()">
+    <span>🌤️</span><span>天気予報をチェック</span>
+  </button>
+
+  <!-- 結果 -->
+  <div id="results"></div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+//  APIs — 完全無料・APIキー不要
+// ═══════════════════════════════════════════════════
+const GEO_API      = 'https://geocoding-api.open-meteo.com/v1/search';
+const FORECAST_API = 'https://api.open-meteo.com/v1/forecast';
+const REVERSE_API  = 'https://api.bigdatacloud.net/data/reverse-geocode-client';
+
+// ═══════════════════════════════════════════════════
+//  WMO天気コード → [絵文字, 日本語名, 傘必要?]
+// ═══════════════════════════════════════════════════
+const WMO = {
+  0:  ['☀️',  '快晴',               false],
+  1:  ['🌤️', '晴れ',               false],
+  2:  ['⛅',  '晴れ時々曇り',       false],
+  3:  ['☁️',  '曇り',               false],
+  45: ['🌫️', '霧',                 false],
+  48: ['🌫️', '霧氷',               false],
+  51: ['🌦️', '霧雨（弱）',         true ],
+  53: ['🌦️', '霧雨',               true ],
+  55: ['🌧️', '霧雨（強）',         true ],
+  56: ['🌧️', '着氷性霧雨（弱）',   true ],
+  57: ['🌧️', '着氷性霧雨',         true ],
+  61: ['🌧️', '雨（弱）',           true ],
+  63: ['🌧️', '雨',                 true ],
+  65: ['🌧️', '大雨',               true ],
+  66: ['🌧️', '着氷性雨（弱）',     true ],
+  67: ['🌧️', '着氷性雨',           true ],
+  71: ['❄️',  '雪（弱）',           true ],
+  73: ['❄️',  '雪',                 true ],
+  75: ['❄️',  '大雪',               true ],
+  77: ['❄️',  '霧雪',               true ],
+  80: ['🌦️', 'にわか雨（弱）',     true ],
+  81: ['🌧️', 'にわか雨',           true ],
+  82: ['⛈️',  '激しいにわか雨',    true ],
+  85: ['🌨️', 'にわか雪（弱）',     true ],
+  86: ['🌨️', 'にわか雪',           true ],
+  95: ['⛈️',  '雷雨',              true ],
+  96: ['⛈️',  '雷雨（ひょう）',    true ],
+  99: ['⛈️',  '激しい雷雨',        true ],
+};
+const wmo = code => WMO[code] || ['🌡️', '不明', false];
+
+// ═══════════════════════════════════════════════════
+//  定数・状態
+// ═══════════════════════════════════════════════════
+const DAYS = [
+  { key:'mon', label:'月曜日', cls:''    },
+  { key:'tue', label:'火曜日', cls:''    },
+  { key:'wed', label:'水曜日', cls:''    },
+  { key:'thu', label:'木曜日', cls:''    },
+  { key:'fri', label:'金曜日', cls:''    },
+  { key:'sat', label:'土曜日', cls:'sat' },
+  { key:'sun', label:'日曜日', cls:'sun' },
+];
+const DEFAULT_SCH = {
+  mon:{ work:true,  depart:'08:00', arrive:'18:00' },
+  tue:{ work:true,  depart:'08:00', arrive:'18:00' },
+  wed:{ work:true,  depart:'08:00', arrive:'18:00' },
+  thu:{ work:true,  depart:'08:00', arrive:'18:00' },
+  fri:{ work:true,  depart:'08:00', arrive:'18:00' },
+  sat:{ work:false, depart:'08:00', arrive:'18:00' },
+  sun:{ work:false, depart:'08:00', arrive:'18:00' },
+};
+
+let loc = null;
+let sch = JSON.parse(localStorage.getItem('sch') || 'null') || structuredClone(DEFAULT_SCH);
+let suggestResults = [];
+let searchTimer = null;
+
+// ═══════════════════════════════════════════════════
+//  初期化
+// ═══════════════════════════════════════════════════
+function init() {
+  const saved = localStorage.getItem('loc');
+  if (saved) { loc = JSON.parse(saved); showLoc(); }
+  renderSchedule();
+}
+
+// ═══════════════════════════════════════════════════
+//  場所検索
+// ═══════════════════════════════════════════════════
+function onCityInput() {
+  clearTimeout(searchTimer);
+  const v = document.getElementById('cityInput').value.trim();
+  if (!v) { closeSug(); return; }
+  searchTimer = setTimeout(doSearch, 420);
+}
+
+async function doSearch() {
+  const city = document.getElementById('cityInput').value.trim();
+  if (!city) return;
+  try {
+    const r = await fetch(`${GEO_API}?name=${encodeURIComponent(city)}&count=6&language=ja&format=json`);
+    const d = await r.json();
+    suggestResults = d.results || [];
+    renderSug(suggestResults);
+  } catch {
+    toast('⚠️ 検索に失敗しました', '#991B1B');
+  }
+}
+
+function renderSug(list) {
+  const el = document.getElementById('suggestions');
+  if (!list.length) { el.className = 'suggestions'; return; }
+  el.innerHTML = list.map((r, i) => `
+    <div class="suggest-item" onclick="selectCity(${i})">
+      <div>
+        <div class="suggest-name">${r.name}</div>
+        <div class="suggest-sub">${[r.admin1, r.country].filter(Boolean).join(' / ')}</div>
+      </div>
+      <div style="font-size:.75rem;color:var(--muted)">
+        ${r.latitude.toFixed(2)}, ${r.longitude.toFixed(2)}
+      </div>
+    </div>`).join('');
+  el.className = 'suggestions open';
+}
+
+function closeSug() {
+  document.getElementById('suggestions').className = 'suggestions';
+}
+
+function selectCity(i) {
+  const r = suggestResults[i];
+  loc = { lat: r.latitude, lon: r.longitude, name: r.name };
+  localStorage.setItem('loc', JSON.stringify(loc));
+  document.getElementById('cityInput').value = r.name;
+  closeSug();
+  showLoc();
+  toast(`📍 ${r.name} を設定しました`);
+}
+
+async function getGPS() {
+  if (!navigator.geolocation) { toast('⚠️ このブラウザは位置情報非対応です', '#991B1B'); return; }
+  navigator.geolocation.getCurrentPosition(async pos => {
+    const { latitude: lat, longitude: lon } = pos.coords;
+    try {
+      const r = await fetch(`${REVERSE_API}?latitude=${lat}&longitude=${lon}&localityLanguage=ja`);
+      const d = await r.json();
+      const name = d.city || d.locality || d.principalSubdivision || '現在地';
+      loc = { lat, lon, name };
+    } catch {
+      loc = { lat, lon, name: '現在地' };
+    }
+    localStorage.setItem('loc', JSON.stringify(loc));
+    document.getElementById('cityInput').value = loc.name;
+    closeSug();
+    showLoc();
+    toast(`📍 ${loc.name} を設定しました`);
+  }, () => toast('⚠️ 位置情報の取得に失敗しました', '#991B1B'));
+}
+
+function showLoc() {
+  document.getElementById('locName').textContent = loc.name;
+  document.getElementById('locDisplay').style.display = 'flex';
+}
+
+// ═══════════════════════════════════════════════════
+//  スケジュール
+// ═══════════════════════════════════════════════════
+function renderSchedule() {
+  document.getElementById('scheduleWrap').innerHTML = DAYS.map(day => {
+    const s = sch[day.key];
+    return `
+      <div class="schedule-row ${s.work ? '' : 'off'}" id="sr-${day.key}">
+        <input type="checkbox" ${s.work ? 'checked' : ''}
+               onchange="toggleDay('${day.key}',this.checked)" />
+        <span class="day-name ${day.cls}">${day.label}</span>
+        <div class="time-group">
+          <div class="time-label">🚶 出発</div>
+          <input type="time" value="${s.depart}"
+                 onchange="uptTime('${day.key}','depart',this.value)" />
+        </div>
+        <div class="time-group">
+          <div class="time-label">🏠 帰宅</div>
+          <input type="time" value="${s.arrive}"
+                 onchange="uptTime('${day.key}','arrive',this.value)" />
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function toggleDay(key, on) {
+  sch[key].work = on;
+  document.getElementById('sr-' + key).classList.toggle('off', !on);
+  saveSch();
+}
+function uptTime(key, f, v) { sch[key][f] = v; saveSch(); }
+function saveSch() { localStorage.setItem('sch', JSON.stringify(sch)); }
+
+// ═══════════════════════════════════════════════════
+//  天気チェック
+// ═══════════════════════════════════════════════════
+async function checkWeather() {
+  if (!loc) { showErr('場所を設定してください'); return; }
+
+  const btn = document.getElementById('checkBtn');
+  btn.disabled = true;
+  btn.innerHTML = `<span style="display:inline-block;width:18px;height:18px;border:2.5px solid rgba(255,255,255,.35);border-top-color:white;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:8px"></span>取得中…`;
+  document.getElementById('results').innerHTML =
+    '<div class="loading"><div class="spinner"></div>天気予報を取得中…</div>';
+
+  try {
+    const params = new URLSearchParams({
+      latitude:  loc.lat,
+      longitude: loc.lon,
+      hourly: 'precipitation_probability,weathercode,temperature_2m,precipitation,snowfall',
+      forecast_days: 7,
+      timezone: 'auto',
+    });
+    const r = await fetch(`${FORECAST_API}?${params}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    renderResults(data.hourly);
+  } catch(e) {
+    showErr('天気予報の取得に失敗しました。<br>ネットワーク接続を確認してください。<br><small>' + e.message + '</small>');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span>🌤️</span><span>天気予報をチェック</span>';
+  }
+}
+
+// ─── 今週の日付（月〜日） ───
+function thisWeekDates() {
+  const today = new Date();
+  const dow = today.getDay();
+  const mon = new Date(today);
+  mon.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
+  mon.setHours(0, 0, 0, 0);
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(mon);
+    d.setDate(mon.getDate() + i);
+    return d;
+  });
+}
+
+function fmtKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+}
+
+// ─── 出発/帰宅 ±1時間分のスロットを取得 ───
+function getSlots(hourly, dateStr, timeStr) {
+  const h = parseInt(timeStr);
+  return [h - 1, h, h + 1]
+    .filter(x => x >= 0 && x <= 23)
+    .map(hr => {
+      const key = `${dateStr}T${String(hr).padStart(2,'0')}:00`;
+      const idx = hourly.time.indexOf(key);
+      if (idx === -1) return null;
+      return {
+        key,
+        hr,
+        pop:  hourly.precipitation_probability[idx] ?? 0,
+        code: hourly.weathercode[idx] ?? 0,
+        temp: hourly.temperature_2m[idx] ?? null,
+        rain: (hourly.precipitation[idx] ?? 0) + (hourly.snowfall[idx] ?? 0),
+      };
+    })
+    .filter(Boolean);
+}
+
+// ─── スロット群から代表（時刻に最も近い）を選ぶ ───
+function pickMain(slots, timeStr) {
+  const h = parseInt(timeStr);
+  return slots.reduce((a, b) =>
+    Math.abs(a.hr - h) <= Math.abs(b.hr - h) ? a : b
+  );
+}
+
+// ─── 傘判定 ───
+function judge(slots) {
+  if (!slots.length) return 'unknown';
+  const maxPop  = Math.max(...slots.map(s => s.pop));
+  const hasRain = slots.some(s => wmo(s.code)[2] || s.rain > 0);
+  if (hasRain || maxPop >= 50) return 'yes';
+  if (maxPop >= 30)            return 'maybe';
+  return 'no';
+}
+
+// ─── 結果レンダリング ───
+function renderResults(hourly) {
+  const today   = new Date(); today.setHours(0, 0, 0, 0);
+  const dayKeys = ['mon','tue','wed','thu','fri','sat','sun'];
+  const dayJa   = ['日','月','火','水','木','金','土'];
+
+  const workDays = thisWeekDates()
+    .map((date, i) => ({ date, key: dayKeys[i], s: sch[dayKeys[i]] }))
+    .filter(({ s, date }) => s.work && date >= today);
+
+  if (!workDays.length) {
+    document.getElementById('results').innerHTML =
+      '<div style="text-align:center;padding:36px;color:var(--muted)">📭 今週の出勤予定がありません</div>';
+    return;
+  }
+
+  const pcls = p => p >= 50 ? 'hi' : p >= 30 ? 'mid' : 'lo';
+  const fmtD = d => `${d.getMonth()+1}月${d.getDate()}日`;
+
+  const commuteRow = (slots, timeStr, label) => {
+    if (!slots.length) return `
+      <div class="commute-item">
+        <div class="c-icon">❓</div>
+        <div class="c-info">
+          <div class="c-label">${label}（${timeStr}）</div>
+          <div class="c-desc" style="color:var(--muted);font-weight:500">予報データなし（7日以上先）</div>
+        </div>
+      </div>`;
+
+    const main   = pickMain(slots, timeStr);
+    const maxPop = Math.max(...slots.map(s => s.pop));
+    const [emoji, desc] = wmo(main.code);
+    const cl = pcls(maxPop);
+    return `
+      <div class="commute-item">
+        <div class="c-icon">${emoji}</div>
+        <div class="c-info">
+          <div class="c-label">${label}（${timeStr}）</div>
+          <div class="c-desc">
+            ${desc}
+            ${main.temp !== null ? `　${Math.round(main.temp)}℃` : ''}
+            ${main.rain > 0 ? `　<span style="color:var(--primary);font-size:.82rem">雨雪量 ${main.rain.toFixed(1)}mm/h</span>` : ''}
+          </div>
+          <div class="pop-row">
+            <div class="pop-tag">降水確率</div>
+            <div class="pop-bg"><div class="pop-fill fill-${cl}" style="width:${maxPop}%"></div></div>
+            <div class="pop-val ${cl}">${maxPop}%</div>
+          </div>
+        </div>
+      </div>`;
+  };
+
+  const cards = workDays.map(({ date, s }) => {
+    const ds   = fmtKey(date);
+    const depS = getSlots(hourly, ds, s.depart);
+    const arrS = getSlots(hourly, ds, s.arrive);
+    const dj   = judge(depS);
+    const aj   = judge(arrS);
+    const ov   = (dj==='yes'||aj==='yes') ? 'yes' : (dj==='maybe'||aj==='maybe') ? 'maybe' : 'no';
+
+    const hc = { yes:'rh-yes', maybe:'rh-maybe', no:'rh-no' }[ov];
+    const bc = { yes:'rb-yes', maybe:'rb-maybe', no:'rb-no' }[ov];
+    const bt = { yes:'☂️ 傘が必要！', maybe:'🤔 念のため持参', no:'☀️ 傘は不要' }[ov];
+
+    return `
+      <div class="result-card">
+        <div class="result-header ${hc}">
+          <div class="result-day">${dayJa[date.getDay()]}曜日　${fmtD(date)}</div>
+          <div class="result-badge ${bc}">${bt}</div>
+        </div>
+        <div class="result-body">
+          ${commuteRow(depS, s.depart, '🚶 出発')}
+          ${commuteRow(arrS, s.arrive, '🏠 帰宅')}
+        </div>
+      </div>`;
+  }).join('');
+
+  document.getElementById('results').innerHTML = `
+    <div class="results-title">📊 今週の傘予報（${loc.name}）</div>
+    ${cards}
+    <p style="font-size:.74rem;color:var(--muted);text-align:center;margin-top:6px">
+      天気データ提供：<a href="https://open-meteo.com" target="_blank" style="color:var(--primary)">Open-Meteo</a>
+      （最大7日先まで対応）
+    </p>`;
+}
+
+// ─── Helpers ───
+function showErr(msg) {
+  document.getElementById('results').innerHTML = `<div class="error-box">⚠️ ${msg}</div>`;
+}
+
+function toast(msg, bg = '#065F46') {
+  const el = Object.assign(document.createElement('div'), {
+    className: 'toast',
+    textContent: msg,
+  });
+  el.style.background = bg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2600);
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#suggestions') && !e.target.closest('#cityInput')) closeSug();
+});
+
+init();
+</script>
+</body>
+</html>
