@@ -292,7 +292,7 @@
              oninput="onCityInput()"
              onkeydown="if(event.key==='Enter') doSearch()" />
       <button class="btn-primary"  onclick="doSearch()">検索</button>
-      <button class="btn-secondary" onclick="getGPS()">📡 現在地</button>
+      <button class="btn-secondary" id="gpsBtn" onclick="getGPS()">📡 現在地</button>
     </div>
     <div class="suggestions" id="suggestions"></div>
     <div class="loc-display" id="locDisplay">
@@ -449,23 +449,65 @@ function selectCity(i) {
 }
 
 async function getGPS() {
-  if (!navigator.geolocation) { toast('⚠️ このブラウザは位置情報非対応です', '#991B1B'); return; }
-  navigator.geolocation.getCurrentPosition(async pos => {
+  const btn = document.getElementById('gpsBtn');
+  btn.textContent = '取得中…'; btn.disabled = true;
+
+  try {
+    if (!navigator.geolocation) {
+      toast('⚠️ GPS非対応 → IPアドレスから推定します', '#92400E');
+      await ipGeo(); return;
+    }
+
+    // GPS取得（10秒タイムアウト）
+    const pos = await new Promise((resolve, reject) =>
+      navigator.geolocation.getCurrentPosition(resolve, reject,
+        { timeout: 10000, maximumAge: 60000, enableHighAccuracy: false })
+    );
+
     const { latitude: lat, longitude: lon } = pos.coords;
     try {
       const r = await fetch(`${REVERSE_API}?latitude=${lat}&longitude=${lon}&localityLanguage=ja`);
       const d = await r.json();
       const name = d.city || d.locality || d.principalSubdivision || '現在地';
-      loc = { lat, lon, name };
+      setLoc({ lat, lon, name });
     } catch {
-      loc = { lat, lon, name: '現在地' };
+      setLoc({ lat, lon, name: '現在地' });
     }
-    localStorage.setItem('loc', JSON.stringify(loc));
-    document.getElementById('cityInput').value = loc.name;
-    closeSug();
-    showLoc();
-    toast(`📍 ${loc.name} を設定しました`);
-  }, () => toast('⚠️ 位置情報の取得に失敗しました', '#991B1B'));
+
+  } catch (err) {
+    // GPS失敗の理由を表示 → IPフォールバック
+    const reason = err.code === 1 ? 'ブラウザで許可が必要です'
+                 : err.code === 2 ? 'GPS信号を取得できませんでした'
+                 : err.code === 3 ? 'タイムアウト'
+                 : '取得失敗';
+    toast(`⚠️ GPS: ${reason} → IPアドレスから推定します`, '#92400E');
+    await ipGeo();
+  } finally {
+    btn.textContent = '📡 現在地'; btn.disabled = false;
+  }
+}
+
+// IPアドレスから場所を推定するフォールバック
+async function ipGeo() {
+  try {
+    const r = await fetch('https://ipapi.co/json/');
+    const d = await r.json();
+    if (!d.latitude) throw new Error('no data');
+    setLoc({ lat: d.latitude, lon: d.longitude, name: d.city || d.region || '現在地' });
+    toast(`📍 ${loc.name}（IPから推定）を設定しました`);
+  } catch {
+    toast('⚠️ 場所の自動取得に失敗しました。都市名で検索してください', '#991B1B');
+  }
+}
+
+// 場所をセットして表示
+function setLoc(l) {
+  loc = l;
+  localStorage.setItem('loc', JSON.stringify(loc));
+  document.getElementById('cityInput').value = loc.name;
+  closeSug();
+  showLoc();
+  if (l.name !== '現在地') toast(`📍 ${loc.name} を設定しました`);
 }
 
 function showLoc() {
